@@ -6,8 +6,6 @@ PkgPilot allows you to search in your terminal for node packages to select and i
 
 - [Installation](#installation)
 - [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Installation
 

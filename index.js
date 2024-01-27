@@ -6,9 +6,8 @@ import checkbox from "@inquirer/checkbox";
 import { exec } from "child_process";
 import axios from "axios";
 import ora from "ora";
-import chalk from 'chalk';
-// import ospath from "ospath";
-// import fs from "fs";
+import ospath from "ospath";
+import fs from "fs";
 
 var PKGS = [];
 var MGR = null;
@@ -17,24 +16,31 @@ var LOCAL = true;
 main();
 
 async function main() {
-  //   let path = ospath.data();
-  //read config file
-  //   console.log("Attempting to read config file...");
-  //   const config = await import(`//${path}/pkgsconfig.json`, {
-  //     assert: {
-  //       type: "json",
-  //     },
-  //     }).catch((err) => {
-  //       console.log("Config file not found!");
-  //   });
-  //   if (config?.mgr) {
-  //     MGR = config.mgr;
-  //     console.log("Config file found!");
-  //     await crossRoads();
-  //   } else {
-  // console.log("Config file not found!");
-  await initializeMgr();
-  //   }
+    let path = ospath.data();
+    console.log("Attempting to read config file...");
+    try{
+        const {default: mgr} = await import(`file://${path}/pkgsconfig.json`, {
+            assert: {
+              type: "json",
+            },
+            }).catch((err) => {
+              console.log(err);
+          });
+          if (mgr) {
+            MGR = mgr;
+            console.log("Config file found!");
+            await crossRoads();
+            return;
+          } else {
+        console.log("Config file not found!");
+        await initializeMgr();
+        return;
+          }
+    } catch (err) {
+        console.log("Config file not found!");
+        await initializeMgr();
+        return;
+    }
 }
 
 async function initializeMgr() {
@@ -58,20 +64,24 @@ async function initializeMgr() {
     ],
   });
   MGR = mgr;
-  //   let path = ospath.data();
-  //   //write config file with mgr
-  //   console.log("Writing config file...");
-  //   var config = { mgr: MGR };
-  //   fs.writeFile(
-  //     `${path}/pkgsconfig.json`,
-  //     JSON.stringify(config),
-  //     function (err) {
-  //       if (err) throw err;
-  //       console.log("Config file created!");
-  //     }
-  //   );
+  try{
+    let path = ospath.data();
+    //write config file with mgr
+    console.log("Writing config file...");
+    var config = { mgr: MGR };
+    fs.writeFile(
+      `${path}/pkgsconfig.json`,
+      JSON.stringify(config),
+      function (err) {
+        if (err) throw err;
+      }
+    );
+  } catch (err) {
+    console.log("Config file not written!");
+  }
   if (!mgr) return;
   await crossRoads();
+  return;
 }
 
 async function crossRoads() {
@@ -107,9 +117,11 @@ async function initialize() {
     if (err) {
       console.log(err);
       crossRoads();
+      return;
     }
     console.log(stdout);
     crossRoads();
+    return;
   });
 }
 
@@ -124,7 +136,7 @@ async function search() {
     });
   const results = response.data.results;
   const choices = results.map((pkg) => {
-    return { name: pkg.package.name, value: pkg.package.name };
+    return { name: `${pkg.package.name} - ${pkg.package.description} `, value: pkg.package.name };
   });
   const selection = await checkbox({
     message: "Select package(s) to install:",
@@ -140,8 +152,10 @@ async function search() {
   });
   if (install) {
     await installPackages();
+    return;
   } else {
     await crossRoads();
+    return;
   }
 }
 
@@ -157,6 +171,7 @@ async function installPackages() {
   });
   if (LOCAL === null) {
     await crossRoads();
+    return;
   }
   const spinner = ora(`Installing packages...`).start();
   const pkgList = PKGS.join(" ");
@@ -165,11 +180,13 @@ async function installPackages() {
     if (err) {
       console.log(err);
       crossRoads();
+      return;
     }
     spinner.stop();
     console.log(stdout);
     PKGS = [];
     crossRoads();
+    return;
   });
 }
 
@@ -194,7 +211,9 @@ async function manageList() {
     });
     console.log("Updated package list: ", PKGS);
     await crossRoads();
+    return;
   } else {
     await crossRoads();
+    return;
   }
 }

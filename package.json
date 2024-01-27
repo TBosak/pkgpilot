@@ -1,6 +1,6 @@
 {
   "name": "pkgpilot",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -15,7 +15,8 @@
     "@inquirer/prompts": "^3.3.0",
     "axios": "^1.6.7",
     "chalk": "^5.3.0",
-    "ora": "^8.0.1"
+    "ora": "^8.0.1",
+    "ospath": "^1.2.2"
   },
   "keywords": [],
   "description": "Command line tool for finding and installing node modules"

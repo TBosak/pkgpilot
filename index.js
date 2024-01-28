@@ -128,34 +128,54 @@ async function initialize() {
 async function search() {
   const searchInput = await input({ message: "Enter search terms" });
   const spinner = ora(`Searching for ${searchInput}...`).start();
-  const response = await axios
-    .get(`https://api.npms.io/v2/search?q=${searchInput}`)
-    .then((res) => {
-      spinner.stop();
-      return res;
+
+  try {
+    const response = await axios.get(`https://api.npms.io/v2/search?q=${searchInput}`);
+    spinner.stop();
+
+    const results = response.data.results;
+    const packageChoices = results.map((pkg) => ({
+      name: `${pkg.package.name} - ${pkg.package.description}`,
+      value: pkg.package.name,
+    }));
+
+    const selectedPackages = await checkbox({
+      message: "Select package(s) to view versions:",
+      choices: packageChoices,
     });
-  const results = response.data.results;
-  const choices = results.map((pkg) => {
-    return { name: `${pkg.package.name} - ${pkg.package.description} `, value: pkg.package.name };
-  });
-  const selection = await checkbox({
-    message: "Select package(s) to install:",
-    choices: choices,
-  });
-  PKGS.push(...selection);
-  const install = await select({
-    message: "Install packages now?",
-    choices: [
-      { name: "Yes", value: true },
-      { name: "No", value: false },
-    ],
-  });
-  if (install) {
-    await installPackages();
-    return;
-  } else {
+
+    for (const pkg of selectedPackages) {
+      // Fetch and select version here
+      const versionSpinner = ora(`Fetching versions for ${pkg}...`).start();
+      const versionResponse = await axios.get(`https://registry.npmjs.org/${pkg}`);
+      versionSpinner.stop();
+
+      const versions = Object.keys(versionResponse.data.versions);
+      const selectedVersion = await select({
+        message: `Select a version for ${pkg}:`,
+        choices: versions.map(version => ({ name: version, value: version })),
+      });
+
+      PKGS.push({ name: pkg, version: selectedVersion });
+    }
+
+    const install = await select({
+      message: "Install packages now?",
+      choices: [
+        { name: "Yes", value: true },
+        { name: "No", value: false },
+      ],
+    });
+
+    if (install) {
+      await installPackages();
+    } else {
+      await crossRoads();
+    }
+  } catch (err) {
+    spinner.stop();
+    console.error("An error occurred during the search:", err.message);
     await crossRoads();
-    return;
   }
 }
 
@@ -174,22 +194,22 @@ async function installPackages() {
     return;
   }
   const spinner = ora(`Installing packages...`).start();
-  const pkgList = PKGS.join(" ");
+
+  // Construct the package list string with versions
+  const pkgList = PKGS.map(pkg => `${pkg.name}@${pkg.version}`).join(' ');
+
   const installCmd = LOCAL ? MGR.install : MGR.globalInstall;
   const command = `${installCmd} ${pkgList}`;
-  await exec(command, (err, stdout, stderr) => {
-    if (err) {
-      spinner.stop();
-      console.log(err);
-      crossRoads();
-      return;
-    }
+
+  try {
+    await exec(command);
+  } catch (err) {
+    console.error('An error occurred during installation:', err);
+  } finally {
     spinner.stop();
-    console.log(stdout);
     PKGS = [];
-    crossRoads();
-    return;
-  });
+    await crossRoads();
+  }
 }
 
 async function manageList() {

@@ -49,15 +49,15 @@ async function initializeMgr() {
     choices: [
       {
         name: "npm",
-        value: { type: "npm", init: "npm init -y", install: "npm install" },
+        value: { type: "npm", init: "npm init -y", install: "npm install", globalInstall: "npm install -g" },
       },
       {
         name: "yarn",
-        value: { type: "npm", init: "yarn init -y", install: "yarn add" },
+        value: { type: "yarn", init: "yarn init -y", install: "yarn add", globalInstall: "yarn global add" },
       },
       {
         name: "pnpm",
-        value: { type: "pnpm", init: "pnpm init", install: "pnpm install" },
+        value: { type: "pnpm", init: "pnpm init", install: "pnpm install", globalInstall: "pnpm install -g" },
       },
       new Separator(),
       { name: "Quit", value: false },
@@ -175,8 +175,9 @@ async function installPackages() {
   }
   const spinner = ora(`Installing packages...`).start();
   const pkgList = PKGS.join(" ");
-  const installCmd = `${MGR.install} ${pkgList} ${LOCAL ? "" : "-g"}`;
-  await exec(installCmd, (err, stdout, stderr) => {
+  const installCmd = LOCAL ? MGR.install : MGR.globalInstall;
+  const command = `${installCmd} ${pkgList}`;
+  await exec(command, (err, stdout, stderr) => {
     if (err) {
       console.log(err);
       crossRoads();

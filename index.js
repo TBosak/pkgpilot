@@ -7,7 +7,7 @@ import { exec } from "child_process";
 import axios from "axios";
 import ora from "ora";
 import ospath from "ospath";
-import fs from "fs";
+import fs, { writeFile } from 'fs/promises';
 
 var PKGS = [];
 var MGR = null;
@@ -16,34 +16,37 @@ var LOCAL = true;
 main();
 
 async function main() {
-    let path = ospath.data();
-    console.log("Attempting to read config file...");
-    try{
-        const {default: mgr} = await import(`file://${path}/pkgsconfig.json`, {
-            assert: {
-              type: "json",
-            },
-            }).catch((err) => {
-              console.log(err);
-          });
-          if (mgr) {
-            MGR = mgr;
-            console.log("Config file found!");
-            await crossRoads();
-            return;
-          } else {
-        console.log("Config file not found!");
-        await initializeMgr();
-        return;
-          }
-    } catch (err) {
-        console.log("Config file not found!");
-        await initializeMgr();
-        return;
-    }
+  let path = ospath.data();
+  console.log("Attempting to read config file...");
+  try {
+      const configFile = await fs.readFile(`${path}/pkgsconfig.json`, 'utf8');
+      const { mgr } = JSON.parse(configFile);
+      if (mgr) {
+          MGR = mgr;
+          console.log("Config file found!");
+          await crossRoads();
+          return;
+      } 
+  } catch (err) {
+      console.log("Config file not found or invalid.");
+      await initializeMgr();
+      return;
+  }
 }
 
 async function initializeMgr() {
+  try {
+    MGR = await selectPackageManager();
+    if (!MGR) return;
+
+    await writeConfigFile();
+    await crossRoads();
+  } catch (err) {
+    console.error("An error occurred:", err);
+  }
+}
+
+async function selectPackageManager() {
   const mgr = await select({
     message: "Select a package manager to install dependencies:",
     choices: [
@@ -63,25 +66,21 @@ async function initializeMgr() {
       { name: "Quit", value: false },
     ],
   });
-  MGR = mgr;
-  try{
-    let path = ospath.data();
-    //write config file with mgr
-    console.log("Writing config file...");
-    var config = { mgr: MGR };
-    fs.writeFile(
-      `${path}/pkgsconfig.json`,
-      JSON.stringify(config),
-      function (err) {
-        if (err) throw err;
-      }
-    );
+  return mgr;
+}
+
+async function writeConfigFile() {
+  try {
+    const dataPath = ospath.data();
+    const configFilePath = `${dataPath}/pkgsconfig.json`;
+    const config = { mgr: MGR };
+
+    await writeFile(configFilePath, JSON.stringify(config));
+
+    console.log("Config file written successfully.");
   } catch (err) {
-    console.log("Config file not written!");
+    console.error("Failed to write config file:", err);
   }
-  if (!mgr) return;
-  await crossRoads();
-  return;
 }
 
 async function crossRoads() {
@@ -111,15 +110,16 @@ async function crossRoads() {
 }
 
 async function initialize() {
-  console.log(`Initializing ${MGR.type}...`);
+  const spinner = ora(`Initializing ${MGR.type}...`).start();
 
   await exec(MGR.init, (err, stdout, stderr) => {
     if (err) {
+      spinner.stop();
       console.log(err);
       crossRoads();
       return;
     }
-    console.log(stdout);
+    spinner.stop();
     crossRoads();
     return;
   });
@@ -179,6 +179,7 @@ async function installPackages() {
   const command = `${installCmd} ${pkgList}`;
   await exec(command, (err, stdout, stderr) => {
     if (err) {
+      spinner.stop();
       console.log(err);
       crossRoads();
       return;

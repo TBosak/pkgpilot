@@ -213,13 +213,11 @@ async function installPackages() {
 }
 
 async function manageList() {
-  const choices = PKGS.map((pkg) => {
-    return { name: pkg, value: pkg };
-  });
   const selection = await checkbox({
     message: "Select package(s) to remove:",
-    choices: choices,
+    choices: PKGS.map(pkg => ({ name: `${pkg.name}@${pkg.version}`, value: pkg.name })),
   });
+
   const remove = await select({
     message: "Are you sure you want to remove these packages from your list?",
     choices: [
@@ -227,15 +225,11 @@ async function manageList() {
       { name: "No", value: false },
     ],
   });
+
   if (remove) {
-    PKGS = PKGS.filter((pkg) => {
-      return !selection.includes(pkg);
-    });
+    PKGS = PKGS.filter(pkg => !selection.includes(pkg.name));
     console.log("Updated package list: ", PKGS);
-    await crossRoads();
-    return;
-  } else {
-    await crossRoads();
-    return;
   }
+
+  await crossRoads();
 }

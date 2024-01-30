@@ -8,6 +8,8 @@ import axios from "axios";
 import ora from "ora";
 import ospath from "ospath";
 import fs, { writeFile } from 'fs/promises';
+import art from 'ascii-art';
+import chalk from 'chalk';
 
 var PKGS = [];
 var MGR = null;
@@ -15,10 +17,17 @@ var LOCAL = true;
 
 main();
 
+async function intro(){
+  await art.font("PkgPilot", 'doom', (err, rendered)=>{
+    console.info(chalk.blue(rendered));
+  });
+  }
+
 async function main() {
+  await intro();
   let path = ospath.data();
-  console.log("Attempting to read config file...");
   try {
+    console.log("Attempting to read config file...");
       const configFile = await fs.readFile(`${path}/pkgsconfig.json`, 'utf8');
       const { mgr } = JSON.parse(configFile);
       if (mgr) {

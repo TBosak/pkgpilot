@@ -25,7 +25,8 @@ async function intro(){
 
 async function main() {
   await intro();
-  let path = ospath.data();
+  process.nextTick(async()=>{
+    let path = ospath.data();
   try {
     console.log("Attempting to read config file...");
       const configFile = await fs.readFile(`${path}/pkgsconfig.json`, 'utf8');
@@ -41,6 +42,7 @@ async function main() {
       await initializeMgr();
       return;
   }
+});
 }
 
 async function initializeMgr() {
